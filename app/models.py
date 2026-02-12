@@ -1,12 +1,13 @@
-from sqlalchemy import Column, Integer, String, BigInteger, ForeignKey, TIMESTAMP, Text, Numeric, Boolean
-from sqlalchemy.orm import relationship  
+from sqlalchemy import Column, Integer, String, Boolean, BigInteger, ForeignKey, TIMESTAMP, Text, Numeric
+from sqlalchemy.orm import relationship
 from .database import Base
 import datetime
 
 class User(Base):
     __tablename__ = "users"
     id = Column(Integer, primary_key=True, index=True)
-    email = Column(String, unique=True)
+    email = Column(String, unique=True, index=True)
+    hashed_password = Column(String)
     role = Column(String)
     active = Column(Boolean, default=True)
 
@@ -15,8 +16,9 @@ class Business(Base):
     id = Column(Integer, primary_key=True, index=True)
     business_name = Column(String)
     taxpayer_id = Column(String)
-    # Aquí ya no marcará error porque ya importamos relationship
+    
     invoices = relationship("Invoice", back_populates="owner")
+    statistics = relationship("StampingStatistic", back_populates="owner")
 
 class Invoice(Base):
     __tablename__ = "invoices"
@@ -30,10 +32,9 @@ class Invoice(Base):
     xml_timbrado = Column(String)            
     uuid = Column(String, unique=True, index=True)
     created_at = Column(TIMESTAMP, default=datetime.datetime.utcnow)
-    
-    # También necesitamos la relación inversa aquí
     business_id = Column(Integer, ForeignKey("businesses.id"))
     owner = relationship("Business", back_populates="invoices")
+    errors = relationship("ErrorStamping", back_populates="invoice")
 
 class StampingBatch(Base):
     __tablename__ = "stamping_batches"
@@ -41,3 +42,24 @@ class StampingBatch(Base):
     zip_name = Column(String)
     total_xml = Column(Integer)
     status = Column(String)
+
+class StampingStatistic(Base):
+    __tablename__ = "stamping_statistics"
+    id = Column(Integer, primary_key=True, index=True)
+    business_id = Column(Integer, ForeignKey("businesses.id"))
+    month = Column(String) 
+    stamped_success = Column(Integer, default=0)
+    stamped_error = Column(Integer, default=0)
+    
+    owner = relationship("Business", back_populates="statistics")
+
+class ErrorStamping(Base):
+    __tablename__ = "errors_stamping"
+    id = Column(Integer, primary_key=True, index=True)
+    invoice_uuid = Column(String, ForeignKey("invoices.uuid"))
+    error_code = Column(String)
+    error_message = Column(Text)
+    error_stage = Column(String) 
+    created_at = Column(TIMESTAMP, default=datetime.datetime.utcnow)
+
+    invoice = relationship("Invoice", back_populates="errors")
